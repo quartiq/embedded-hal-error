@@ -6,9 +6,7 @@
 
 //! Provide `core::error::Error` for `embedded-hal` Errors using a newtype wrapper.
 
-use core::error;
-use core::fmt::{Debug, Display};
-use core::ops::{Deref, DerefMut};
+use core::{error, fmt};
 
 /// Wrap an Error and store its ErrorKind
 ///
@@ -21,38 +19,43 @@ pub struct Error<E, K> {
 }
 
 impl<E, K> Error<E, K> {
-    /// Extract the inner Error
+    /// Extract the inner `Error`
     pub fn into_inner(self) -> E {
         self.inner
     }
-}
 
-impl<E: Debug, K> Display for Error<E, K> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Debug::fmt(&self.inner, f)
+    /// The `ErrorKind`
+    pub fn kind(&self) -> &K {
+        &self.kind
     }
 }
 
-impl<E, K> Deref for Error<E, K> {
+impl<E, K> core::ops::Deref for Error<E, K> {
     type Target = E;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl<E, K> DerefMut for Error<E, K> {
+impl<E, K> core::ops::DerefMut for Error<E, K> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
-impl<E: Debug, K> Debug for Error<E, K> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Debug::fmt(&self.inner, f)
+impl<E: fmt::Debug, K> fmt::Display for Error<E, K> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
-impl<E: Debug, K: error::Error + 'static> error::Error for Error<E, K> {
+impl<E: fmt::Debug, K> fmt::Debug for Error<E, K> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.inner, f)
+    }
+}
+
+impl<E: fmt::Debug, K: error::Error + 'static> error::Error for Error<E, K> {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         Some(&self.kind as &dyn error::Error)
     }
@@ -113,8 +116,14 @@ mod tests {
         #[error("logic")]
         Logic,
     }
+    impl<E: digital::Error> From<E> for DriverError<E> {
+        fn from(value: E) -> Self {
+            Error::from(value).into()
+        }
+    }
+
     fn driver<P: digital::OutputPin>(pin: &mut P) -> Result<(), DriverError<P::Error>> {
-        pin.set_high().map_err(Error::from)?;
+        pin.set_high()?;
         if pin.set_low().is_err() {
             Err(DriverError::Logic)
         } else {
