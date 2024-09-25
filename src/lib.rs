@@ -3,8 +3,6 @@
 use core::error;
 use core::fmt::{Debug, Display};
 
-use embedded_hal as eh;
-
 pub struct Error<E, K> {
     inner: E,
     kind: K,
@@ -28,12 +26,23 @@ impl<E: Debug, K: error::Error + 'static> error::Error for Error<E, K> {
     }
 }
 
-impl<E: eh::digital::Error> From<E> for Error<E, eh::digital::ErrorKind> {
-    fn from(inner: E) -> Self {
-        let kind = inner.kind();
-        Self { inner, kind }
-    }
+macro_rules! impl_from {
+    ($($mod:ident)::+) => {
+        impl<E: $($mod ::)+ Error> From<E> for Error<E, $($mod ::)+ ErrorKind> {
+            fn from(inner: E) -> Self {
+                let kind = inner.kind();
+                Self { inner, kind }
+            }
+        }
+    };
 }
+
+impl_from!(embedded_hal::digital);
+impl_from!(embedded_hal::i2c);
+impl_from!(embedded_hal::pwm);
+impl_from!(embedded_hal::spi);
+impl_from!(embedded_can);
+impl_from!(embedded_hal_nb::serial);
 
 #[cfg(test)]
 mod tests {
@@ -82,9 +91,10 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let err = driver(&mut Pin).unwrap_err();
-        let src = err.source().unwrap().source().unwrap();
-        assert!(src.source().is_none());
-        // println!("{err}: {src}");
+        let driver_err: DriverError<PinError> = driver(&mut Pin).unwrap_err();
+        let pin_err = driver_err.source().unwrap(); // PinError
+        let kind = pin_err.source().unwrap(); // digital::ErrorKind::Other
+        assert!(kind.source().is_none());
+        // println!("{driver_err:?}: {driver_err}\n{pin_err:?}: {pin_err}\n{kind:?}: {kind}");
     }
 }
