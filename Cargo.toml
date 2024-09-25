@@ -1,0 +1,10 @@
+[package]
+name = "embedded-hal-error"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embedded-hal = { version = "1.0.0", git = "https://github.com/rust-embedded/embedded-hal.git" }
+
+[dev-dependencies]
+thiserror = { version = "1.0.63", git = "https://github.com/quartiq/thiserror.git", branch = "no-std", default-features = false }
