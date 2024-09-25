@@ -96,41 +96,38 @@ mod tests {
     }
 
     mod driver {
-        use crate::Error;
         use embedded_hal::digital;
 
         #[derive(Debug, thiserror::Error)]
-        pub enum DriverError<E: digital::Error> {
+        pub enum Error<E: digital::Error> {
             #[error("Hal")]
-            Hal(#[from] Error<E, digital::ErrorKind>),
+            Hal(#[from] crate::Error<E, digital::ErrorKind>),
             // ...
         }
-        impl<E: digital::Error> From<E> for DriverError<E> {
+        impl<E: digital::Error> From<E> for Error<E> {
             fn from(value: E) -> Self {
-                Error::from(value).into()
+                crate::Error::from(value).into()
             }
         }
 
-        pub fn action<P: digital::OutputPin>(pin: &mut P) -> Result<(), DriverError<P::Error>> {
+        pub fn action<P: digital::OutputPin>(pin: &mut P) -> Result<(), Error<P::Error>> {
             Ok(pin.set_high()?)
         }
     }
 
-    // user
     #[test]
-    fn it_works() {
-        use crate::Error;
+    fn inspect() {
         use core::error::Error as _;
-        use embedded_hal::digital::{self, Error as _};
+        use embedded_hal::digital::{Error as _, ErrorKind};
 
         let driver_err = driver::action(&mut hal::Pin).unwrap_err();
         let err_dyn = driver_err.source().unwrap();
-        let err: &Error<hal::Error, digital::ErrorKind> = err_dyn.downcast_ref().unwrap();
+        let err: &crate::Error<hal::Error, ErrorKind> = err_dyn.downcast_ref().unwrap();
         let hal_err: &hal::Error = err; // Deref
-        assert!(matches!(hal_err.kind(), digital::ErrorKind::Other));
+        assert!(matches!(hal_err.kind(), ErrorKind::Other));
         let kind_dyn = err_dyn.source().unwrap();
-        let kind: &digital::ErrorKind = kind_dyn.downcast_ref().unwrap();
-        assert!(matches!(kind, digital::ErrorKind::Other));
+        let kind: &ErrorKind = kind_dyn.downcast_ref().unwrap();
+        assert!(matches!(kind, ErrorKind::Other));
         assert!(kind_dyn.source().is_none());
     }
 
