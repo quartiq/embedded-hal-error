@@ -22,11 +22,6 @@ impl<E, K> Error<E, K> {
     pub fn into_inner(self) -> E {
         self.inner
     }
-
-    /// The `ErrorKind`
-    pub fn kind(&self) -> &K {
-        &self.kind
-    }
 }
 
 impl<E, K> core::ops::Deref for Error<E, K> {
@@ -77,7 +72,7 @@ impl_from!(embedded_io);
 mod tests {
     use super::*;
     use core::error::Error as _;
-    use embedded_hal::digital;
+    use embedded_hal::digital::{self, Error as _};
     use thiserror::Error;
 
     // hal
@@ -123,9 +118,20 @@ mod tests {
     // user
     #[test]
     fn it_works() {
-        let driver_err: DriverError<PinError> = driver(&mut Pin).unwrap_err();
-        let pin_err = driver_err.source().unwrap(); // PinError
-        let kind = pin_err.source().unwrap(); // digital::ErrorKind::Other
+        let driver_err = driver(&mut Pin).unwrap_err();
+        let pin_err = driver_err.source().unwrap();
+        assert!(matches!(
+            pin_err
+                .downcast_ref::<Error<PinError, digital::ErrorKind>>()
+                .unwrap()
+                .kind(), // Deref
+            digital::ErrorKind::Other
+        ));
+        let kind = pin_err.source().unwrap();
+        assert!(matches!(
+            kind.downcast_ref::<digital::ErrorKind>().unwrap(),
+            digital::ErrorKind::Other
+        ));
         assert!(kind.source().is_none());
         // println!("{driver_err:?}: {driver_err}\n{pin_err:?}: {pin_err}\n{kind:?}: {kind}");
     }
