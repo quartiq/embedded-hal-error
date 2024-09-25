@@ -8,11 +8,10 @@
 
 use core::{error, fmt};
 
-/// Wrap an Error and store its ErrorKind
+/// Wrap a HAL `Error` and store its `ErrorKind` to provide [`core::error::Error`]
 ///
-/// This implements [`core::error::Error`] by using the
-/// `E: Debug` for `Debug` and `Display` and the
-/// `E: ErrorKind` as [`core::error::Error::source()`].
+/// Uses `E: Debug` for `Debug` and `Display` and the
+/// stored `ErrorKind` as [`core::error::Error::source()`].
 pub struct Error<E, K> {
     inner: E,
     kind: K,
@@ -34,12 +33,6 @@ impl<E, K> core::ops::Deref for Error<E, K> {
     type Target = E;
     fn deref(&self) -> &Self::Target {
         &self.inner
-    }
-}
-
-impl<E, K> core::ops::DerefMut for Error<E, K> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
     }
 }
 
@@ -111,8 +104,8 @@ mod tests {
     // driver
     #[derive(Debug, Error)]
     enum DriverError<E: digital::Error> {
-        #[error("pin: {0}")]
-        Pin(#[from] Error<E, digital::ErrorKind>),
+        #[error("Hal")]
+        Hal(#[from] Error<E, digital::ErrorKind>),
         #[error("logic")]
         Logic,
     }
@@ -123,12 +116,8 @@ mod tests {
     }
 
     fn driver<P: digital::OutputPin>(pin: &mut P) -> Result<(), DriverError<P::Error>> {
-        pin.set_high()?;
-        if pin.set_low().is_err() {
-            Err(DriverError::Logic)
-        } else {
-            Ok(())
-        }
+        pin.set_low().or(Err(DriverError::Logic))?;
+        Ok(pin.set_high()?)
     }
 
     // user
@@ -139,5 +128,11 @@ mod tests {
         let kind = pin_err.source().unwrap(); // digital::ErrorKind::Other
         assert!(kind.source().is_none());
         // println!("{driver_err:?}: {driver_err}\n{pin_err:?}: {pin_err}\n{kind:?}: {kind}");
+    }
+
+    #[test]
+    #[ignore]
+    fn with_anyhow() -> anyhow::Result<()> {
+        Ok(driver(&mut Pin)?)
     }
 }

@@ -5,9 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "core::error::Error for embedded-hal Errors"
 repository = "https://github.com/quartiq/embedded-hal-error"
-authors = [
-	"Robert Jördens <rj@quartiq.de>",
-]
+authors = ["Robert Jördens <rj@quartiq.de>"]
 categories = ["embedded", "no-std"]
 documentation = "https://docs.rs/embedded-hal-error"
 rust-version = "1.81"
@@ -20,4 +18,5 @@ embedded-can = { version = "0.4.1", git = "https://github.com/rust-embedded/embe
 embedded-hal-nb = { version = "1.0.0", git = "https://github.com/rust-embedded/embedded-hal.git" }
 
 [dev-dependencies]
+anyhow = { version = "1.0.89", default-features = false }
 thiserror = { version = "1.0.63", git = "https://github.com/quartiq/thiserror.git", branch = "no-std", default-features = false }
