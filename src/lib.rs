@@ -70,27 +70,24 @@ impl_from!(embedded_io);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::error::Error as _;
-    use embedded_hal::digital::{self, Error as _};
-    use thiserror::Error;
-
     mod hal {
-        use super::*;
+        use embedded_hal::digital;
+
         #[derive(Debug)]
-        pub struct HalError;
-        impl digital::Error for HalError {
+        pub struct Error;
+        impl digital::Error for Error {
             fn kind(&self) -> digital::ErrorKind {
                 digital::ErrorKind::Other
             }
         }
+
         pub struct Pin;
         impl digital::ErrorType for Pin {
-            type Error = HalError;
+            type Error = Error;
         }
         impl digital::OutputPin for Pin {
             fn set_high(&mut self) -> Result<(), Self::Error> {
-                Err(HalError)
+                Err(Error)
             }
             fn set_low(&mut self) -> Result<(), Self::Error> {
                 unimplemented!()
@@ -99,8 +96,10 @@ mod tests {
     }
 
     mod driver {
-        use super::*;
-        #[derive(Debug, Error)]
+        use crate::Error;
+        use embedded_hal::digital;
+
+        #[derive(Debug, thiserror::Error)]
         pub enum DriverError<E: digital::Error> {
             #[error("Hal")]
             Hal(#[from] Error<E, digital::ErrorKind>),
@@ -111,6 +110,7 @@ mod tests {
                 Error::from(value).into()
             }
         }
+
         pub fn action<P: digital::OutputPin>(pin: &mut P) -> Result<(), DriverError<P::Error>> {
             Ok(pin.set_high()?)
         }
@@ -119,13 +119,14 @@ mod tests {
     // user
     #[test]
     fn it_works() {
-        use driver::*;
-        use hal::*;
+        use crate::Error;
+        use core::error::Error as _;
+        use embedded_hal::digital::{self, Error as _};
 
-        let driver_err = action(&mut Pin).unwrap_err();
+        let driver_err = driver::action(&mut hal::Pin).unwrap_err();
         let err_dyn = driver_err.source().unwrap();
-        let err: &Error<HalError, digital::ErrorKind> = err_dyn.downcast_ref().unwrap();
-        let hal_err: &HalError = err; // Deref
+        let err: &Error<hal::Error, digital::ErrorKind> = err_dyn.downcast_ref().unwrap();
+        let hal_err: &hal::Error = err; // Deref
         assert!(matches!(hal_err.kind(), digital::ErrorKind::Other));
         let kind_dyn = err_dyn.source().unwrap();
         let kind: &digital::ErrorKind = kind_dyn.downcast_ref().unwrap();
@@ -136,9 +137,6 @@ mod tests {
     #[test]
     #[ignore]
     fn with_anyhow() -> anyhow::Result<()> {
-        use driver::*;
-        use hal::*;
-
-        Ok(action(&mut Pin)?)
+        Ok(driver::action(&mut hal::Pin)?)
     }
 }
